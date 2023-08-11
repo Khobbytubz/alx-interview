@@ -2,33 +2,52 @@
 
 const request = require('request');
 
-const filmId = process.argv[2];
+const movieId = process.argv[2];
+const filmEndPoint = 'https://swapi-api.hbtn.io/api/films/' + movieId;
+let people = [];
+const names = [];
 
-const url = `https://swapi-api.hbtn.io/api/films/${filmId}`;
-
-request(url, (err, res) => {
-  if (err) {
-    console.error(err);
-    return;
-  }
-
-  const { characters } = JSON.parse(res.body);
-
-  const printCharacterNames = async () => {
-    for (const character of characters) {
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise((resolve, reject) => {
-        request(character, (err, res) => {
-          if (err) {
-            reject(err);
-          }
-
-          const characterNames = JSON.parse(res.body).name;
-          console.log(characterNames);
-          resolve();
-        });
-      });
+const requestCharacters = async () => {
+  await new Promise(resolve => request(filmEndPoint, (err, res, body) => {
+    if (err || res.statusCode !== 200) {
+      console.error('Error: ', err, '| StatusCode: ', res.statusCode);
+    } else {
+      const jsonBody = JSON.parse(body);
+      people = jsonBody.characters;
+      resolve();
     }
-  };
-  printCharacterNames();
-});
+  }));
+};
+
+const requestNames = async () => {
+  if (people.length > 0) {
+    for (const p of people) {
+      await new Promise(resolve => request(p, (err, res, body) => {
+        if (err || res.statusCode !== 200) {
+          console.error('Error: ', err, '| StatusCode: ', res.statusCode);
+        } else {
+          const jsonBody = JSON.parse(body);
+          names.push(jsonBody.name);
+          resolve();
+        }
+      }));
+    }
+  } else {
+    console.error('Error: Got no Characters for some reason');
+  }
+};
+
+const getCharNames = async () => {
+  await requestCharacters();
+  await requestNames();
+
+  for (const n of names) {
+    if (n === names[names.length - 1]) {
+      process.stdout.write(n);
+    } else {
+      process.stdout.write(n + '\n');
+    }
+  }
+};
+
+getCharNames();
